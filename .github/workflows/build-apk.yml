@@ -1,0 +1,476 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本號 (例如: 2.9.1)'
+        required: true
+        default: '2.9.1'
+
+env:
+  APP_NAME: CNC加工工具包
+  APP_VERSION: ${{ github.event.inputs.version || github.ref_name || '2.9.0' }}
+
+jobs:
+  build-apk:
+    name: 構建 Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 檢查代碼
+      uses: actions/checkout@v4
+    
+    - name: 設置 Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: 安裝系統依賴
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          git \
+          build-essential \
+          libffi-dev \
+          libssl-dev \
+          python3-dev \
+          python3-venv \
+          python3-pip \
+          autoconf \
+          automake \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libtinfo5 \
+          cmake \
+          libxml2-dev \
+          libxslt-dev \
+          libltdl-dev
+      
+    - name: 安裝 Buildozer 依賴
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython==0.29.33
+        pip install kivy[full]==2.1.0
+    
+    - name: 創建 buildozer.spec 文件
+      run: |
+        cat > buildozer.spec << 'EOF'
+[app]
+
+# (str) Title of your application
+title = CNC加工工具包
+
+# (str) Package name
+package.name = cnctoolkit
+
+# (str) Package domain (needed for android/ios packaging)
+package.domain = com.errepi
+
+# (str) Source code where the main.py live
+source.dir = .
+
+# (list) Source files to include (let empty to include all the files)
+source.include_exts = py,png,jpg,kv,atlas,ttf
+
+# (list) List of inclusions using pattern matching
+#source.include_patterns = assets/*,images/*.png
+
+# (list) Source files to exclude (let empty to not exclude anything)
+#source.exclude_exts = spec
+
+# (list) List of directory to exclude (let empty to not exclude anything)
+#source.exclude_dirs = tests, bin
+
+# (list) List of exclusions using pattern matching
+#source.exclude_patterns = license,images/*/*.jpg
+
+# (str) Application versioning (method 1)
+version = $APP_VERSION
+
+# (str) Application versioning (method 2)
+# version.regex = __version__ = ['"](.*)['"]
+# version.filename = %(source.dir)s/main.py
+
+# (list) Application requirements
+# comma separated e.g. requirements = sqlite3,kivy
+requirements = python3,kivy==2.1.0,openssl,requests,pygments,docutils,chardet,idna,urllib3,certifi
+
+# (str) Custom source folders for requirements
+# Sets custom source for any requirements with recipes
+# requirements.source.kivy = ../../kivy
+
+# (list) Garden requirements
+#garden_requirements =
+
+# (str) Presplash of the application
+#presplash.filename = %(source.dir)s/data/presplash.png
+
+# (str) Icon of the application
+#icon.filename = %(source.dir)s/data/icon.png
+
+# (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
+orientation = portrait
+
+# (list) List of service to declare
+#services = NAME:ENTRYPOINT_TO_PY,NAME2:ENTRYPOINT2_TO_PY
+
+# (list) Permissions
+android.permissions = INTERNET
+
+# (int) Target Android API, should be as high as possible.
+android.api = 33
+
+# (int) Minimum API your APK will support.
+android.minapi = 21
+
+# (int) Android SDK version to use
+#android.sdk = 20
+
+# (str) Android NDK version to use
+#android.ndk = 23b
+
+# (int) Android NDK API to use. This is the minimum API your app will support, it should be >= android.minapi.
+#android.ndk_api = 21
+
+# (bool) Use --private data storage (True) or --dir public storage (False)
+#android.private_storage = True
+
+# (str) Android NDK directory (if empty, it will be automatically downloaded.)
+#android.ndk_path =
+
+# (str) Android SDK directory (if empty, it will be automatically downloaded.)
+#android.sdk_path =
+
+# (str) ANT directory (if empty, it will be automatically downloaded.)
+#android.ant_path =
+
+# (bool) If True, then skip trying to update the Android sdk
+# This can be useful to avoid excess Internet downloads or save time
+# when an update is due and you just want to test/build your package
+# android.skip_update = False
+
+# (bool) If True, then automatically accept SDK license
+# agreements. This is intended for automation only. If set to False,
+# the default, you will be shown the license when first running
+# buildozer.
+android.accept_sdk_license = True
+
+# (str) Android entry point, default is ok for Kivy-based app
+#android.entrypoint = org.kivy.android.PythonActivity
+
+# (str) Android app theme, default is ok for Kivy-based app
+# android.apptheme = "@android:style/Theme.NoTitleBar"
+
+# (str) Android logcat filters (default is error)
+#android.logcat_filters = *:S python:D
+
+# (bool) Android copy-libs (default is True)
+#android.copy_libs = 1
+
+# (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
+android.arch = arm64-v8a
+
+# (str) Python version to use (default is 3.10.5)
+android.python = 3.10.5
+
+# (str) Bootstrap to use (default is sdl2)
+android.bootstrap = sdl2
+
+# (str) Android additional permissions
+android.permissions = INTERNET
+
+# (str) Android additional metadata
+android.meta_data =
+
+# (str) Android additional intent filters
+android.intent_filters =
+
+# (list) Android additions
+#android.add_src =
+
+# (list) Android additions AAR
+#android.add_aars =
+
+# (list) Android additions JAR
+#android.add_jars =
+
+# (list) Android additions assets
+#android.add_assets =
+
+# (list) Android additions res
+#android.add_res =
+
+# (bool) Android prebuild binaries
+#android.prebuild_binaries =
+
+# (list) Gradle dependencies to add
+#android.gradle_dependencies =
+
+# (bool) Enable AndroidX support
+#android.enable_androidx = False
+
+# (list) Java classes to add as activities to the manifest.
+#android.add_activites =
+
+# (str) OUYA Console category. Should be one of GAME or APP
+# If you leave this blank, OUYA support will not be enabled
+#android.ouya.category = GAME
+
+# (str) Filename of OUYA Console icon. It must be a 732x412 png image.
+#android.ouya.icon.filename = %(source.dir)s/data/ouya_icon.png
+
+# (str) XML file to include as an intent filters in <activity> tag
+#android.manifest.intent_filters =
+
+# (str) Launch screen to show at startup
+#android.manifest.launch_screen =
+
+# (list) Android additional libraries to copy into libs/armeabi
+#android.add_libs_armeabi = libs/android/*.so
+#android.add_libs_armeabi_v7a = libs/android-v7/*.so
+#android.add_libs_arm64_v8a = libs/android-v8/*.so
+#android.add_libs_x86 = libs/android-x86/*.so
+#android.add_libs_x86_64 = libs/android-x86_64/*.so
+
+# (bool) Indicate whether the screen should stay on
+# Don't forget to add the WAKE_LOCK permission if you set this to True
+#android.wakelock = False
+
+# (list) Android application meta-data to set (key=value format)
+#android.meta_data =
+
+# (list) Android library project to add (will be added in the project.properties automatically.)
+#android.library_references =
+
+# (list) Android shared libraries which will be added to AndroidManifest.xml using <uses-library> tag
+#android.shared_libraries =
+
+# (str) Android jar dependencies
+#android.jar_dependencies =
+
+# (list) Android Java classes to add (will be added in the project.properties automatically.)
+#android.java_classes =
+
+# (list) Pattern to whitelist for the whole project
+#android.whitelist =
+
+# (str) Path to a custom whitelist file
+#android.whitelist_src =
+
+# (str) Path to a custom blacklist file
+#android.blacklist_src =
+
+# (list) List of files to remove from the apk before packaging
+#android.strip_paths =
+
+# (list) List of directories where the app will allow read/write
+#android.dirs_permissions =
+
+# (list) Android drawables to add
+#android.add_drawables =
+
+# (bool) Android allow back-up
+#android.allow_backup = True
+
+# (str) iOS development team
+#ios.team_id =
+
+# (str) Display Name (for iOS)
+#ios.display_name =
+
+# (str) Version (for iOS)
+#ios.version =
+
+# (str) Bundle identifier
+#ios.bundle_identifier =
+
+# (str) Code signing identity
+#ios.codesign.identity =
+
+# (str) Profile to use for signing
+#ios.codesign.profile =
+
+# (str) Mobile provision path
+#ios.codesign.mobileprovision =
+
+# (str) Build configuration (debug or release)
+#ios.build_config = debug
+
+# (bool) If True, use Xcode legacy build system
+#ios.use_legacy_build_system = False
+
+# (bool) If True, use SWIFT 5
+#ios.use_swift_5 = False
+
+# (str) iOS deployment target
+#ios.deployment_target = 11.0
+
+# (str) iOS SDK version to use
+#ios.sdk = 13.0
+
+# (str) Minimum iOS version supported
+#ios.min_version = 11.0
+
+# (str) Minimum macOS version supported
+#ios.macos_min_version = 10.15
+
+# (str) Minimum tvOS version supported
+#ios.tvos_min_version = 12.0
+
+# (str) Minimum watchOS version supported
+#ios.watchos_min_version = 5.0
+
+# (list) iOS frameworks to link
+#ios.frameworks =
+
+# (list) iOS libraries to link
+#ios.libraries =
+
+# (list) iOS plist additions
+#ios.plist_additional = 
+
+# (list) iOS plist push notifications
+#ios.plist_push_notifications =
+
+# (list) iOS embedded frameworks
+#ios.embedded_frameworks =
+
+# (list) iOS excluded architectures
+#ios.excluded_archs =
+
+# (bool) Whether to force usage of the ios arm64 slice
+#ios.force_arm64 = False
+
+# (str) Android keystore path (if empty, it will be automatically generated.)
+#android.keystore.path =
+
+# (str) Android keystore alias (if empty, it will be automatically generated.)
+#android.keystore.alias =
+
+# (str) Android keystore password (if empty, it will be automatically generated.)
+#android.keystore.storepass =
+
+# (str) Android key password (if empty, it will be automatically generated.)
+#android.keystore.keypass =
+
+# (bool) Whether to use ant to build the apk
+#android.use_ant = False
+
+#
+#    Buildozer packaging
+#
+
+[buildozer]
+
+# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+log_level = 2
+
+# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+warn_on_root = 1
+
+# (str) Path to build artifact storage, absolute or relative to spec file
+# build_dir = ./.buildozer
+
+# (str) Path to build output (i.e. .apk, .ipa) storage
+# bin_dir = ./bin
+
+#    -----------------------------------------------------------------------------
+#    List as sections
+#
+#    You can define all the "list" as [section:key].
+#    Each line will be considered as a option to the list.
+#    Let's take [app] / source.exclude_patterns.
+#    Instead of doing:
+#
+#[app]
+#source.exclude_patterns = license,data/audio/*.wav,data/images/original/*
+#
+#    This can be translated into:
+#
+#[app:source.exclude_patterns]
+#license
+#data/audio/*.wav
+#data/images/original/*
+#
+
+#    -----------------------------------------------------------------------------
+#    Profiles
+#
+#    You can extend section / key with a profile
+#    For example, you want to deploy a demo version of your application without
+#    HD content. You could first change the title to add "(demo)" in the name
+#    and extend the excluded directories to remove the HD content.
+#
+#[app@demo]
+#title = My Application (demo)
+#
+#[app:source.exclude_patterns@demo]
+#images/hd/*
+#
+#    Then, invoke the command line with the "demo" profile:
+#
+#buildozer --profile demo android debug
+#
+EOF
+    
+    - name: 更新版本號
+      run: |
+        sed -i "s/version = \$APP_VERSION/version = ${{ env.APP_VERSION }}/g" buildozer.spec
+        echo "設置版本號: ${{ env.APP_VERSION }}"
+    
+    - name: 清理舊的構建文件
+      run: |
+        rm -rf .buildozer || true
+        rm -rf bin || true
+    
+    - name: 初始化 Buildozer
+      run: |
+        buildozer init
+        echo "Buildozer 初始化完成"
+    
+    - name: 構建 APK (調試版)
+      run: |
+        buildozer -v android debug
+      
+    - name: 上傳 APK 文件
+      uses: actions/upload-artifact@v4
+      with:
+        name: CNC-Toolkit-APK
+        path: |
+          bin/*.apk
+        retention-days: 7
+    
+    - name: 創建版本發布
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        name: CNC加工工具包 v${{ env.APP_VERSION }}
+        body: |
+          ## CNC加工工具包 Android APK
+          
+          **版本**: ${{ env.APP_VERSION }}
+          
+          **構建時間**: ${{ github.run_number }}
+          
+          ### 功能包含：
+          - 刀具伸長計算
+          - 球刀步距計算
+          - 螺旋銑削計算
+          - 切削條件計算
+          - 切削預留量計算
+          
+          ### 開發者：
+          Henry 老師傅
+          
+          ### 公司：
+          歐盛珠寶股份有限公司 ERREPI TAIWAN
+        files: bin/*.apk
+        draft: false
+        prerelease: false
